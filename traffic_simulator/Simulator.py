@@ -1,20 +1,21 @@
 # 2025.4.24 yh
 from tqdm import tqdm
-from traffic_simulator.entity.TaxiEntity import TaxiEntity
-from traffic_simulator.entity.OrderEntity import OrderEntity
 from traffic_simulator.manager.FleetManager import FleetManager
 from traffic_simulator.manager.OrderManager import OrderManager
 from traffic_simulator.manager.RoadNetworkManager import RoadNetworkManager
 from traffic_simulator.strategy.OrderMatchStrategy import TaxiMatchingStrategy
-# from traffic_simulator.strategy.TaxiRepositionStrategy import TaxiRepositioningStrategy
+from traffic_simulator.strategy.TaxiRepositionStrategy import TaxiRepositionStrategy
+from traffic_simulator.tool.AnalyzerTool import OrderAnalyzer
 
 class TrafficSimulator:
     """交通模拟器类"""
     
-    def __init__(self, taxi_number, start_time, time_window, road_network, orders_df):
+    def __init__(self, taxi_number, start_time, time_window, road_network, orders_df, order_match_strategy="nearest", taxi_reposition_strategy="random", order_saved=False, fleet_saved=False):
         """
         初始化交通模拟器
         """
+        self.order_saved = order_saved
+        self.fleet_saved = fleet_saved
         # 初始化管理器
         self.road_network_manager = RoadNetworkManager(road_network)
         taxi_init_positions = self.generate_taxi_positions(taxi_number)
@@ -22,10 +23,12 @@ class TrafficSimulator:
         self.order_manager = OrderManager(orders_df, start_time)
         
         # 初始化策略
-        self.matching_strategy = TaxiMatchingStrategy()
-        # self.repositioning_strategy = TaxiRepositioningStrategy()
+        self.matching_strategy = TaxiMatchingStrategy(strategy_name=order_match_strategy)
+        self.repositioning_strategy = TaxiRepositionStrategy(strategy_name="random")
         
         # 初始化仿真时间
+        self.start_time = start_time
+        self.end_time = None
         self.current_time = start_time
         self.time_window = time_window
 
@@ -63,7 +66,7 @@ class TrafficSimulator:
         self._match_and_assign_orders()
         
         # 4. 重定位空闲出租车
-        # self._reposition_idle_taxis()
+        self._reposition_idle_taxis()
         
         # 返回当前时间
         return self.current_time
@@ -122,18 +125,15 @@ class TrafficSimulator:
             return
         
         # 执行重定位策略
-        reposition_plan = self.repositioning_strategy.reposition_taxis(
+        reposition_plan = self.repositioning_strategy.reposition(
             idle_taxis,
-            self.road_network_manager
+            self.road_network_manager,
+            self.current_time
         )
-        
+
         # 执行重定位计划
-        self.fleet_manager.reposition_idle_taxis(reposition_plan, self.current_time)
+        self.fleet_manager.reposition_idle_taxis(reposition_plan)
         
-        # 记录日志
-        for taxi_id, plan in reposition_plan.items():
-            print(f"时间 {self.current_time}: 出租车 {taxi_id} 重定位到节点 {plan['destination_node']}, "
-                  f"预计 {self.current_time + plan['arrival_time']} 到达")
     
     def run_simulation(self, until_step):
         """
@@ -142,13 +142,19 @@ class TrafficSimulator:
             until_time: 结束时间
         """
         print(f"开始仿真，当前时间: {self.current_time}, 目标时间步: {until_step}")
+        self.end_time = self.start_time + until_step * self.time_window
         
         for _ in tqdm(range(until_step), desc="Simulation Progress", unit="step"):
             self.step()
 
-        self.order_manager.export_orders_to_json()
-        self.fleet_manager.export_history_to_json()
-
         print(f"仿真结束，当前时间: {self.current_time}")
+
+        order_result = self.order_manager.export_orders_to_json(self.start_time, self.end_time, saved=self.order_saved)
+        fleet_result = self.fleet_manager.export_history_to_json(saved=self.fleet_saved)
+
+        analyzer = OrderAnalyzer(order_result)
+        # 生成关键指标报告
+        report = analyzer.generate_key_metrics_report()
+        print(report)
 
 

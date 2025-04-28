@@ -151,7 +151,7 @@ class OrderManager:
                     order.dropoff_time = order_time
 
     
-    def export_orders_to_json(self):
+    def export_orders_to_json(self, start_time, end_time, saved):
         """
         将所有订单导出为JSON格式并保存到results文件夹
         文件名自动包含时间戳，精确到分钟
@@ -163,6 +163,8 @@ class OrderManager:
             orders_data = {}
             
             for order_id, order in self.orders.items():
+                if order.request_time < start_time or order.request_time > end_time:
+                    continue
                 # 将每个订单对象转换为字典
                 order_dict = {
                     "order_id": int(order.order_id),
@@ -179,31 +181,32 @@ class OrderManager:
                 # 添加到总数据中
                 orders_data[int(order_id)] = order_dict
             
-            # 获取当前时间并格式化为时间戳（精确到分钟）
-            current_time = datetime.now().strftime("%Y%m%d_%H%M")
-            filename = f"orders_history_{current_time}.json"
-            
-            # 获取当前文件所在目录
-            current_dir = os.path.dirname(__file__)
-            # 获取上上一级目录
-            parent_dir = os.path.dirname(os.path.dirname(current_dir))
-            # 设置results文件夹路径
-            results_dir = os.path.join(parent_dir, "results")
-            
-            # 确保results目录存在
-            os.makedirs(results_dir, exist_ok=True)
-            
-            # 完整的文件路径
-            file_path = os.path.join(results_dir, filename)
-            
-            # 写入JSON文件
-            with open(file_path, 'w', encoding='utf-8') as f:
-                json.dump(orders_data, f, indent=4, ensure_ascii=False)
+            if saved:
+                # 获取当前时间并格式化为时间戳（精确到分钟）
+                current_time = datetime.now().strftime("%Y%m%d_%H%M")
+                filename = f"orders_history_{current_time}.json"
                 
-            print(f"订单数据已成功导出到: {file_path}")
-            return True
+                # 获取当前文件所在目录
+                current_dir = os.path.dirname(__file__)
+                # 获取上上一级目录
+                parent_dir = os.path.dirname(os.path.dirname(current_dir))
+                # 设置results文件夹路径
+                results_dir = os.path.join(parent_dir, "results")
+                
+                # 确保results目录存在
+                os.makedirs(results_dir, exist_ok=True)
+                
+                # 完整的文件路径
+                file_path = os.path.join(results_dir, filename)
+                
+                # 写入JSON文件
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    json.dump(orders_data, f, indent=4, ensure_ascii=False)
+                    
+                print(f"订单数据已成功导出到: {file_path}")
+                return orders_data
             
         except Exception as e:
             print(f"导出订单数据时出错: {str(e)}")
-            return False
+            return None
 

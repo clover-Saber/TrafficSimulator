@@ -97,29 +97,39 @@ class TaxiMatchingStrategy:
     def _nearest_taxi_matching(self, cost_matrix: Dict[int, Dict[int, int]], **kwargs) -> List[Tuple[int, int]]:
         """
         最近出租车匹配策略
-        为每个订单分配花费时间最少的出租车
+        为每个订单分配花费时间最少的出租车，且出租车接单的最远时间不超过300秒
+        
         参数:
             cost_matrix: 出租车到订单的花费时间邻接字典，格式为 {taxi_id: {order_id: cost, ...}, ...}
+            **kwargs: 可选参数
+            
         返回:
             匹配结果列表，每个元素为(taxi_id, order_id)
         """
         if not cost_matrix:
             return []
-            
+        
         # 获取出租车ID列表
         taxi_ids = list(cost_matrix.keys())
         
         # 如果没有出租车，返回空列表
         if not taxi_ids:
             return []
-            
+        
         # 获取订单ID列表（从第一个出租车的邻接字典中提取）
+        # 确保至少有一个出租车存在且有订单信息
+        if not taxi_ids or not cost_matrix[taxi_ids[0]]:
+            return []
+        
         order_ids = list(cost_matrix[taxi_ids[0]].keys())
         
         # 如果没有订单，返回空列表
         if not order_ids:
             return []
-            
+        
+        # 设置最大接单时间限制（300秒）
+        MAX_TRAVEL_TIME = 300
+        
         # 为了避免重复分配，我们需要跟踪已分配的出租车和订单
         assigned_taxis = set()
         assigned_orders = set()
@@ -129,7 +139,7 @@ class TaxiMatchingStrategy:
         for order_id in order_ids:
             if order_id in assigned_orders:
                 continue
-                
+            
             best_taxi = None
             min_cost = float('inf')
             
@@ -137,11 +147,11 @@ class TaxiMatchingStrategy:
             for taxi_id in taxi_ids:
                 if taxi_id in assigned_taxis:
                     continue
-                    
-                # 检查该出租车是否可以到达该订单
+                
+                # 检查该出租车是否可以到达该订单，且旅行时间不超过300秒
                 if order_id in cost_matrix[taxi_id]:
                     cost = cost_matrix[taxi_id][order_id]
-                    if cost < min_cost:
+                    if cost <= MAX_TRAVEL_TIME and cost < min_cost:
                         min_cost = cost
                         best_taxi = taxi_id
             
@@ -151,8 +161,8 @@ class TaxiMatchingStrategy:
                 assigned_taxis.add(best_taxi)
                 assigned_orders.add(order_id)
         
-        print(f"最近出租车匹配策略: 共匹配 {len(matches)} 对出租车-订单")
         return matches
+
     
     def _batch_matching(self, cost_matrix: Dict[int, Dict[int, int]], **kwargs) -> List[Tuple[int, int]]:
         """

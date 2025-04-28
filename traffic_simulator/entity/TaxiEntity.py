@@ -9,7 +9,6 @@ class TaxiEntity:
     def __init__(self, taxi_id: int, position_node: int, driver_preference: str = ""):
         """
         初始化出租车实体
-        
         参数:
             taxi_id: 出租车的唯一标识符
             position_node: 出租车初始位置(节点编号)

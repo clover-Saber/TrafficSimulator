@@ -110,7 +110,7 @@ class FleetManager:
             taxi.current_destination = destination_node
             taxi.current_route = route
     
-    def export_history_to_json(self):
+    def export_history_to_json(self, saved):
         """
         将车队中每辆出租车的订单历史和路线历史保存为JSON格式
         
@@ -120,9 +120,6 @@ class FleetManager:
         返回:
             bool: 保存成功返回True，否则返回False
         """
-        import json
-        from datetime import datetime
-        
         try:
             fleet_data = {}
             
@@ -163,34 +160,35 @@ class FleetManager:
                 "fleet_data": fleet_data
             }
             
-            # 获取当前时间并格式化为时间戳（精确到分钟）
-            current_time = datetime.now().strftime("%Y%m%d_%H%M")
-            filename = f"fleet_history_{current_time}.json"
-            
-            # 获取当前文件所在目录
-            current_dir = os.path.dirname(__file__)
-            # 获取上上一级目录
-            parent_dir = os.path.dirname(os.path.dirname(current_dir))
-            # 设置results文件夹路径
-            results_dir = os.path.join(parent_dir, "results")
-            
-            # 确保results目录存在
-            os.makedirs(results_dir, exist_ok=True)
-            
-            # 完整的文件路径
-            file_path = os.path.join(results_dir, filename)
-            
-            # 写入JSON文件
-            with open(file_path, 'w', encoding='utf-8') as f:
-                json.dump(fleet_data, f, indent=4, ensure_ascii=False)
-            
-            # 写入JSON文件
-            with open(file_path, 'w', encoding='utf-8') as f:
-                json.dump(result, f, ensure_ascii=False, indent=4)
-            
-            print(f"车队历史记录已成功保存至 {file_path}")
-            return True
+            if saved:
+                # 获取当前时间并格式化为时间戳（精确到分钟）
+                current_time = datetime.now().strftime("%Y%m%d_%H%M")
+                filename = f"fleet_history_{current_time}.json"
+                
+                # 获取当前文件所在目录
+                current_dir = os.path.dirname(__file__)
+                # 获取上上一级目录
+                parent_dir = os.path.dirname(os.path.dirname(current_dir))
+                # 设置results文件夹路径
+                results_dir = os.path.join(parent_dir, "results")
+                
+                # 确保results目录存在
+                os.makedirs(results_dir, exist_ok=True)
+                
+                # 完整的文件路径
+                file_path = os.path.join(results_dir, filename)
+                
+                # 写入JSON文件
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    json.dump(fleet_data, f, indent=4, ensure_ascii=False)
+                
+                # 写入JSON文件
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    json.dump(result, f, ensure_ascii=False, indent=4)
+                
+                print(f"车队历史记录已成功保存至 {file_path}")
+                return fleet_data
             
         except Exception as e:
             print(f"保存车队历史记录失败: {str(e)}")
-            return False
+            return None
