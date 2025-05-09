@@ -114,8 +114,9 @@ class TaxiEntity:
         """
         # 如果没有路线或不在移动状态，不需要更新
         if not self.current_route or self.status not in ["enroute_pickup", "occupied", "repositioning"]:
-            return False
+            return []
         
+        result = []
         order_id = self.current_order
         order_status = None
         order_time = None
@@ -130,6 +131,7 @@ class TaxiEntity:
                 if new_position == self.current_destination:
                     order_status = "picked_up"
                     order_time = arrival_time
+                    result.append((order_id, order_status, order_time))
                     self._arrive_at_pickup()
         else:
             for node, arrival_time in self.current_route:
@@ -150,9 +152,9 @@ class TaxiEntity:
                 self._complete_order()
                 order_status = "completed"    
                 order_time = last_time
+                result.append((order_id, order_status, order_time))
             elif self.status == "repositioning":
                 self._complete_repositioning()
 
         # 变化后的订单及其状态
-        if order_status: return (order_id, order_status, order_time)
-        return None  # 订单状态未变化
+        return result

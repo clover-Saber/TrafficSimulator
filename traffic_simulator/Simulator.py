@@ -10,7 +10,7 @@ from traffic_simulator.tool.AnalyzerTool import OrderAnalyzer
 class TrafficSimulator:
     """交通模拟器类"""
     
-    def __init__(self, taxi_number, start_time, time_window, road_network, orders_df, order_match_strategy="nearest", taxi_reposition_strategy="random", order_saved=False, fleet_saved=False):
+    def __init__(self, taxi_number, start_time, time_window, road_network, orders_df, taxi_preferences=[], order_match_strategy="nearest", taxi_reposition_strategy="random", order_saved=False, fleet_saved=False):
         """
         初始化交通模拟器
         """
@@ -19,12 +19,12 @@ class TrafficSimulator:
         # 初始化管理器
         self.road_network_manager = RoadNetworkManager(road_network)
         taxi_init_positions = self.generate_taxi_positions(taxi_number)
-        self.fleet_manager = FleetManager(taxi_init_positions)
+        self.fleet_manager = FleetManager(taxi_init_positions, taxi_preferences)
         self.order_manager = OrderManager(orders_df, start_time)
         
         # 初始化策略
         self.matching_strategy = TaxiMatchingStrategy(strategy_name=order_match_strategy)
-        self.repositioning_strategy = TaxiRepositionStrategy(strategy_name="random")
+        self.repositioning_strategy = TaxiRepositionStrategy(strategy_name=taxi_reposition_strategy)
         
         # 初始化仿真时间
         self.start_time = start_time
@@ -61,12 +61,20 @@ class TrafficSimulator:
         # 2. 更新出租车状态
         order_list = self.fleet_manager.update_taxis_position(self.current_time)
         self.order_manager.change_orders_status(order_list)
-        
+        # print("111111111111111111111111")
+        # self.fleet_manager.print_all_taxis()
+
         # 3. 匹配订单
         self._match_and_assign_orders()
+        # print("2222222222222222222222222")
+        # self.fleet_manager.print_all_taxis()
+
         
         # 4. 重定位空闲出租车
         self._reposition_idle_taxis()
+        # print("333333333333333333333333333")
+        # self.fleet_manager.print_all_taxis()
+
         
         # 返回当前时间
         return self.current_time
@@ -76,6 +84,8 @@ class TrafficSimulator:
         # 获取空闲出租车和等待订单
         idle_taxis = self.fleet_manager.get_idle_taxis()
         waiting_orders = self.order_manager.get_waiting_orders(self.current_time)
+        # print("===============")
+        # print(len(idle_taxis), len(waiting_orders))
         
         if not idle_taxis or not waiting_orders:
             return
@@ -97,6 +107,7 @@ class TrafficSimulator:
         
         # 执行匹配策略
         matches = self.matching_strategy.match(cost_matrix)
+        # print(len(idle_taxis)-len(matches), len(waiting_orders)-len(matches))
         
         # 分配订单
         for taxi_id, order_id in matches:
@@ -156,5 +167,12 @@ class TrafficSimulator:
         # 生成关键指标报告
         report = analyzer.generate_key_metrics_report()
         print(report)
+        # 获取特殊情况订单详情
+        special_cases = analyzer.get_special_cases_details()
+        print("特殊情况订单详情:")
+        for case_type, case_df in special_cases.items():
+            if not case_df.empty:
+                print(f"{case_type}类型特殊订单数量: {len(case_df)}")
+                print(case_df["order_id"])
 
 

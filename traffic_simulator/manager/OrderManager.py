@@ -17,7 +17,7 @@ class OrderManager:
         """
         self.orders = {}  # 存储所有订单，以order_id为键
         # 订单取消时间
-        self.waiting_threshold = 300
+        self.waiting_threshold = 60
         
         # 如果提供了DataFrame，则从中初始化订单
         if orders_df is not None:
@@ -204,7 +204,7 @@ class OrderManager:
                     json.dump(orders_data, f, indent=4, ensure_ascii=False)
                     
                 print(f"订单数据已成功导出到: {file_path}")
-                return orders_data
+            return orders_data
             
         except Exception as e:
             print(f"导出订单数据时出错: {str(e)}")

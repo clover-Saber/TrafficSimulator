@@ -6,24 +6,24 @@ from datetime import datetime
 from traffic_simulator.entity.TaxiEntity import TaxiEntity
 
 class FleetManager:
-    def __init__(self, taxi_init_positions):
+    def __init__(self, taxi_init_positions, taxi_init_preferences):
         """初始化车队管理类"""
         self.taxis = {}  # dict[int, TaxiEntity] - 存储所有出租车实体，以 taxi_id 为键
         # 初始出租车车队
-        self._initialize_fleet_with_positions(taxi_init_positions)
+        self._initialize_fleet_with_positions(taxi_init_positions, taxi_init_preferences)
 
-    def _initialize_fleet_with_positions(self, taxi_init_positions):
+    def _initialize_fleet_with_positions(self, taxi_init_positions, taxi_init_preferences):
         """
         根据提供的位置列表初始化出租车
         参数:
             taxi_positions: 出租车位置列表，每个元素为节点ID，表示一辆出租车的初始位置
         """
         # 创建出租车并分配指定位置
-        for position_node in taxi_init_positions:
+        for position_node, preferences in zip(taxi_init_positions, taxi_init_preferences):
             taxi_id = len(self.taxis) + 1
             
             # 创建出租车实体
-            taxi = TaxiEntity(taxi_id, position_node)
+            taxi = TaxiEntity(taxi_id, position_node, preferences)
             # 添加到管理器
             self._add_taxi(taxi)
             
@@ -70,8 +70,8 @@ class FleetManager:
         order_list = []
         for taxi_id, taxi in self.taxis.items():
             # 更新位置
-            change_order = taxi.update_position(current_time)
-            if change_order: order_list.append(change_order)
+            change_orders = taxi.update_position(current_time)
+            if change_orders: order_list.extend(change_orders)
 
         return order_list
     
@@ -86,6 +86,17 @@ class FleetManager:
             if taxi.status == "idle":
                 idle_taxis.append(taxi)
         return idle_taxis
+    
+    def print_all_taxis(self) -> list[TaxiEntity]:
+        """
+        获取所有出租车的列表
+        返回:
+            list[TaxiEntity]: 出租车列表
+        """
+        idle_taxis = []
+        for taxi_id, taxi in self.taxis.items():
+            print(taxi.taxi_id, taxi.position_node, taxi.status)
+        return self.taxis
     
     def reposition_idle_taxis(self, strategy_list: list[(int, int, list[(int, int)])]):
         """
@@ -187,7 +198,7 @@ class FleetManager:
                     json.dump(result, f, ensure_ascii=False, indent=4)
                 
                 print(f"车队历史记录已成功保存至 {file_path}")
-                return fleet_data
+            return fleet_data
             
         except Exception as e:
             print(f"保存车队历史记录失败: {str(e)}")

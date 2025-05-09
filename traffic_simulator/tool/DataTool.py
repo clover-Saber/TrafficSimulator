@@ -98,7 +98,7 @@ class DataTool:
                             # 直接使用源文件中的length和time属性
                             length = float(edge_data['length'])
                             time = float(edge_data['time'])
-                            
+                        
                             # 添加边，保留距离和时间属性，使用新的节点ID
                             G.add_edge(old_to_new_id[u], old_to_new_id[v], length=length, time=time)
                             edges_processed += 1

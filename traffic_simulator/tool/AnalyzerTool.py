@@ -10,7 +10,6 @@ class OrderAnalyzer:
     def __init__(self, orders_data: Dict[str, Dict[str, Any]] = None):
         """
         初始化分析器
-        
         Args:
             orders_data: 订单数据字典
         """
@@ -23,28 +22,15 @@ class OrderAnalyzer:
     def load_data(self, orders_data: Dict[str, Dict[str, Any]]) -> None:
         """
         加载订单数据并转换为DataFrame
-        
         Args:
             orders_data: 订单数据字典
         """
         self.orders_data = orders_data
         self.orders_df = pd.DataFrame.from_dict(orders_data, orient='index')
     
-    def load_from_json_file(self, file_path: str) -> None:
-        """
-        从JSON文件加载订单数据
-        
-        Args:
-            file_path: JSON文件路径
-        """
-        with open(file_path, 'r') as f:
-            self.orders_data = json.load(f)
-        self.orders_df = pd.DataFrame.from_dict(self.orders_data, orient='index')
-    
     def analyze_key_metrics(self) -> Dict[str, Any]:
         """
         分析订单数据并返回关键指标
-        
         Returns:
             包含关键统计指标的字典
         """
@@ -115,9 +101,51 @@ class OrderAnalyzer:
             results['special_case_invalid_assignment'] + 
             results['special_case_negative_trip']
         )
+
+        # 7. 计算平均车辆占用率
+        # 首先获取所有有效订单（有分配出租车的订单）
+        valid_orders = self.orders_df[self.orders_df['assigned_taxi'].notna()].copy()
+        
+        if len(valid_orders) > 0:
+            # 按出租车ID分组
+            taxi_groups = valid_orders.groupby('assigned_taxi')
+            
+            # 计算每辆出租车的占用率并求平均
+            taxi_occupancy_rates = []
+            simulation_start_time = valid_orders['request_time'].min()
+            simulation_end_time = max(
+                valid_orders['request_time'].max(),
+                valid_orders['dropoff_time'].dropna().max() if not valid_orders['dropoff_time'].dropna().empty else 0
+            )
+            simulation_duration = simulation_end_time - simulation_start_time
+            
+            if simulation_duration > 0:
+                for taxi_id, taxi_orders in taxi_groups:
+                    # 确保订单按时间排序
+                    taxi_orders = taxi_orders.sort_values('assigned_time')
+                    
+                    # 计算载客时间总和
+                    occupied_time = 0
+                    for _, order in taxi_orders.iterrows():
+                        if pd.notna(order['assigned_time']) and pd.notna(order['dropoff_time']):
+                            # 只计算有效的载客时间（接客到送达）
+                            occupied_time += max(0, order['dropoff_time'] - order['assigned_time'])
+                    
+                    # 计算该出租车的占用率
+                    taxi_occupancy_rate = occupied_time / simulation_duration
+                    taxi_occupancy_rates.append(taxi_occupancy_rate)
+                
+                # 计算平均占用率
+                avg_occupancy_rate = sum(taxi_occupancy_rates) / len(taxi_occupancy_rates) if taxi_occupancy_rates else 0
+                results['avg_vehicle_occupancy_rate'] = avg_occupancy_rate
+            else:
+                results['avg_vehicle_occupancy_rate'] = 0
+        else:
+            results['avg_vehicle_occupancy_rate'] = 0
         
         return results
-    
+
+        
     def get_special_cases_details(self) -> Dict[str, pd.DataFrame]:
         """
         获取特殊情况订单的详细信息
@@ -186,9 +214,13 @@ class OrderAnalyzer:
             report += f"   (从接客到送达的平均时间)\n"
         else:
             report += "5. 平均行程时间: 无有效数据\n"
+
+        # 6. 平均车辆占用率
+        report += f"6. 平均车辆占用率: {metrics['avg_vehicle_occupancy_rate']:.2%}\n"
+        report += f"   (车辆载客时间占总运营时间的平均比例)\n"
         
         # 6. 特殊情况订单
-        report += "6. 特殊情况订单:\n"
+        report += "7. 特殊情况订单:\n"
         report += f"   - 无接客时间但有送达时间的订单: {metrics['special_case_no_pickup']}\n"
         report += f"   - 起点终点相同的订单: {metrics['special_case_same_location']}\n"
         report += f"   - 分配时间异常的订单: {metrics['special_case_invalid_assignment']}\n"
@@ -251,8 +283,8 @@ if __name__ == "__main__":
     
     # 获取特殊情况订单详情
     special_cases = analyzer.get_special_cases_details()
-    print("\n特殊情况订单详情:")
+    print("特殊情况订单详情:")
     for case_type, case_df in special_cases.items():
-        print(f"\n{case_type}类型特殊订单数量: {len(case_df)}")
+        print(f"{case_type}类型特殊订单数量: {len(case_df)}")
         if not case_df.empty:
-            print(case_df.head())
+            print(case_df["order_id"])
